@@ -16,13 +16,13 @@ CREATE TABLE artdb.artists(
 CREATE TABLE artdb.works(
 	work_id SERIAL PRIMARY KEY,
 	name TEXT,
-	artist_id REFERENCES artdb.artists(artist_id),
+	artist_id INT REFERENCES artdb.artists(artist_id),
 	style TEXT,
-	museum_id REFERENCES artdb.museums(museum_id)
+	museum_id INT REFERENCES artdb.museums(museum_id)
 )
 --4
 CREATE TABLE artdb.museums(
-	museum_id SERIAL PRIMAARY KEY,
+	museum_id SERIAL PRIMARY KEY,
 	name TEXT,
 	address VARCHAR(100),
 	city TEXT,
@@ -35,10 +35,10 @@ CREATE TABLE artdb.museums(
 --5
 CREATE SCHEMA sales_data;
 CREATE TABLE sales_data.product_size(
-	work_id REFERENCES artdb.works(work_id),
+	work_id INT REFERENCES artdb.works(work_id),
 	size_id INT, 
-	sale_price INT,
-	regular_price INT
+	sale_price NUMERIC(12, 2),
+	regular_price NUMERIC
 );
 --6
 CREATE SCHEMA archive_data;
