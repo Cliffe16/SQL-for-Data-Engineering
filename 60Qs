@@ -1,0 +1,588 @@
+--1
+CREATE SCEHEMA artdb;
+--2
+CREATE TABLE artdb.artists(
+	artist_id SERIAL PRIMARY KEY,
+	full_name TEXT NOT NULL,
+	first_name TEXT,
+	middle_names TEXT,
+	last_name TEXT,
+	nationality TEXT,
+	style TEXT,
+	birth INT,
+	death INT
+);
+--3
+CREATE TABLE artdb.works(
+	work_id SERIAL PRIMARY KEY,
+	name TEXT,
+	artist_id REFERENCES artdb.artists(artist_id),
+	style TEXT,
+	museum_id REFERENCES artdb.museums(museum_id)
+)
+--4
+CREATE TABLE artdb.museums(
+	museum_id SERIAL PRIMAARY KEY,
+	name TEXT,
+	address VARCHAR(100),
+	city TEXT,
+	state TEXT,
+	postal INT,
+	country TEXT,
+	phone VARCHAR(50),
+	url VARCHAR(100)
+);
+--5
+CREATE SCHEMA sales_data;
+CREATE TABLE sales_data.product_size(
+	work_id REFERENCES artdb.works(work_id),
+	size_id INT, 
+	sale_price INT,
+	regular_price INT
+);
+--6
+CREATE SCHEMA archive_data;
+CREATE TABLE archive_data.artists(
+	artist_id SERIAL PRIMARY KEY,
+	full_name TEXT NOT NULL,
+	first_name TEXT,
+	middle_names TEXT,
+	last_name TEXT,
+	nationality TEXT,
+	style TEXT,
+	birth INT,
+	death INT	
+);
+INSERT INTO archive_data.artists(
+	artist_id SERIAL PRIMARY KEY,
+	full_name TEXT NOT NULL,
+	first_name TEXT,
+	middle_names TEXT,
+	last_name TEXT,
+	nationality TEXT,
+	style TEXT,
+	birth INT,
+	death INT	
+)
+SELECT * 
+FROM artdb.artists
+WHERE birth < 1600;
+--7
+CREATE SCHEMA analytics;
+CREATE TABLE top_artists(
+	artist_id INT REFERENCES artdb.artists(artist_id),
+	full_name TEXT,
+	total_works INT
+);
+--8
+ALTER TABLE artdb.artists
+ADD COLUMN era VARCHAR(50);
+--9
+ALTER TABLE artdb.artists
+DROP COLUMN middle_names;
+--10
+ALTER TABLE artdb.works
+RENAME COLUMN style TO art_Style;
+--11
+ALTER TABLE artdb.museums
+ADD COLUMN established_year INT;
+--12
+ALTER COLUMN sales_data.product_sizes
+ALTER sale_price TO NUMERIC(12, 2);
+--13
+ALTER TABLE artdb.museums
+DROP COLUMN phone;
+--14
+CREATE TABLE artdb.museum_hours(
+	museum_id INT REFERENCES artdb.museums(museum_id),
+	day TEXT,
+	open VARCHAR(20),
+	close VARCHAR(20)
+);
+ALTER TABLE artdb.museum_hours
+ADD COLUMN is_open_weekends BOOLEAN;
+--15
+SELECT * FROM artdb.artists;
+--16
+SELECT * FROM artdb.works LIMIT 10;
+--17
+SELECT full_name, nationality
+FROM artdb.artists;
+--18
+SELECT name, city
+FROM artdb.museums;
+--19
+SELECT name
+FROM artdb.works
+WHERE artist_id = 615;
+--20
+SELECT full_name
+FROM artdb.artists
+WHERE nationality = 'French';
+--21
+SELECT name
+FROM artdb.artists
+WHERE birth > 1800;
+--22
+SELECT name 
+FROM artdb.works
+WHERE art_style = 'Impressionism';
+--23
+SELECT *
+FROM artdb.museums
+WHERE nationality = 'USA';
+--24
+SELECT w.name
+FROM artdb.works w
+	JOIN artdb.artists a
+	 ON w.artist_id=a.artist_id
+WHERE a.birth BETWEEN 1700 AND 1800;	 
+--26
+SELECT name
+FROM artdb.artists
+WHERE last_name = 'Renoir';
+--27
+SELECT w.name
+FROM artdb.works w
+	JOIN sales_data.product_size p
+	 ON w.work_id=p.work_id
+WHERE p.regular_price > 10000;
+--28
+SELECT full_name AS name
+FROM artdb.artists
+ORDER BY birth DESC;
+--29
+SELECT w.name, p.regular_price
+FROM artdb.works w
+	JOIN sales_data.product_size p
+	 ON w.work_id=p.work_id
+ORDER BY p.regular_price DESC
+LIMIT 5;
+--30
+SELECT name, city
+FROM artdb.museums
+ORDER BY city ASC;
+--31
+SELECT name, art_style
+FROM artdb.works
+ORDER BY art_style DESC;
+--32
+SELECT full_name, birth
+FROM artdb.artists
+ORDER BY birth DESC;
+--33
+SELECT COUNT(*) AS no_of_artists, nationality
+FROM artdb.artists
+GROUP BY nationality;
+--34
+SELECT ROUND(AVG(p.sale_price), 2), w.art_style	
+FROM sales_data.product_size p
+	JOIN artdb.works w
+		ON w.work_id=p.work_id
+GROUP BY w.art_style;	
+--35
+SELECT COUNT(w.*) AS no_of_works, m.name
+FROM artdb.works w
+	JOIN artdb.museums m
+		ON w.museum_id=m.museum_id
+GROUP BY m.name;	
+--36
+SELECT 
+    (a.birth / 100 + 1) AS century,
+    COUNT(w.work_id) AS count_works
+FROM artdb.artists a
+	JOIN artdb.works w 
+		ON a.artist_id = w.artist_id
+WHERE a.birth IS NOT NULL
+GROUP BY (a.birth / 100 + 1)
+ORDER BY century;
+
+--37
+CREATE TABLE sales_data.canvas_size(
+	size_id INT,
+	width INT,
+	height INT,
+	label VARCHAR(50)
+);
+SELECT MAX(width) AS max_width, size_id
+FROM sales_data.canvas_size
+GROUP BY size_id;
+--38
+CREATE TABLE artdb.subjects(
+	work_id INT REFERENCES artdb.works(work_id),
+	subject VARCHAR(50)
+);
+SELECT COUNT(work_id), subject
+FROM artdb.subjects
+WHERE subject = 'Portraits'
+GROUP BY subject;
+--39
+SELECT COUNT(work_id), art_style
+FROM artdb.works
+GROUP BY art_style;
+--40
+SELECT COUNT(*), nationality
+FROM artdb.artists
+GROUP BY nationality
+HAVING COUNT(*) > 50;
+--41
+SELECT COUNT(w.*), m.name
+FROM artdb.works w
+	JOIN artdb.museums m
+		ON w.museum_id=m.museum_id
+GROUP BY m.name
+HAVING COUNT(w.*) > 200;
+--42
+SELECT AVG(p.regular_price), w.art_style
+FROM sales_data.product_size p
+	JOIN artdb.works w
+		ON p.work_id = w.work_id
+GROUP BY w.art_style
+HAVING AVG(p.regular_price) > 50000;
+--43
+SELECT COUNT(work_id), subject
+FROM artdb.subjects
+GROUP BY subject
+HAVING COUNT(work_id) > 1000;
+--44
+SELECT COUNT(*), nationality
+FROM artdb.artists
+WHERE style = 'Impressionist'
+GROUP BY nationality
+HAVING COUNT(*) > 5;
+--45
+SELECT COUNT(*), city
+FROM artdb.museums
+GROUP BY city
+HAVING COUNT(*) > 2;
+--46
+SELECT a.full_name, w.name
+FROM artdb.artists a
+	JOIN artdb.works w
+		ON a.artist_id=w.artist_id;
+--47
+SELECT m.name, w.name
+FROM artdb.museums m
+	JOIN artdb.works w
+		ON m.museum_id=w.museum_id;
+--48
+SELECT a.nationality, w.name, m.city
+FROM artdb.artists a
+	JOIN artdb.works w
+		ON a.artist_id=w.artist_id
+			JOIN artdb.museums m
+				ON m.museum_id=w.museum_id;
+--49
+SELECT w.name, c.width, c.height, c.label	
+FROM sales_data.product_size p
+	JOIN artdb.works w
+		ON w.work_id=p.work_id
+			JOIN sales_data.canvas_size c
+				ON c.size_id=p.size_id;
+--50
+SELECT m.name, h.open, h.close
+FROM artdb.museums m
+	JOIN artdb.museum_hours h
+		ON m.museum_id=h.museum_id;
+--51
+CREATE TABLE artdb.image_link(
+	work_id INT REFERENCES artdb.works(work_id),
+	url VARCHAR(500),
+	thumbnail_small_url VARCHAR(500),
+	thumbnail_large_url VARCHAR(200)
+)
+SELECT w.name, i.url
+FROM artdb.works w
+	LEFT JOIN artdb.image_link i
+		ON w.work_id=i.work_id
+--52
+SELECT a.full_name, COUNT(w.*)
+FROM artdb.artists a
+	JOIN artdb.works w
+		ON a.artist_id=w.artist_id
+GROUP BY a.full_name;
+--53
+SELECT a.full_name
+	FROM artdb.artists a
+		JOIN artdb.works w
+			ON 	a.artist_id=w.artist_id
+GROUP BY a.full_name
+HAVING COUNT(w.work_id) > (
+	SELECT AVG(count_work)
+	FROM(
+		SELECT COUNT(*) AS count_work
+		FROM artdb.works
+		GROUP BY artist_id
+		) AS s
+);
+--54
+SELECT MAX(s.regular_price)
+FROM
+(
+SELECT w.name, p.regular_price
+FROM artdb.works w
+ JOIN sales_data.product_size p
+ 	ON w.work_id=p.work_id
+) AS s;
+--55
+SELECT full_name
+FROM artdb.artists
+WHERE birth < (
+	SELECT AVG(birth)
+	FROM artdb.artists);
+--56
+SELECT name
+FROM (
+	SELECT m.name, w.art_style
+	FROM artdb.works w
+		JOIN artdb.museums m
+			ON w.museum_id=m.museum_id
+	WHERE w.art_style = 'Impressionism'
+);
+--57
+SELECT w.name, p.sale_price 
+FROM artdb.works w
+	JOIN sales_data.product_size p
+		ON w.work_id=p.work_id
+GROUP BY w.name, sale_price
+HAVING sale_price > (
+	SELECT AVG(sale_price)
+	FROM sales_data.product_size
+);
+--58
+SELECT *
+FROM artdb.artists a
+WHERE a.artist_id IN (
+    SELECT artist_id
+    FROM artdb.artists
+    WHERE death IS NULL
+);
+
+--59
+SELECT name
+FROM(
+	SELECT m.name, COUNT(w.*) AS no_works
+	FROM artdb.museums m
+		JOIN artdb.works w
+			ON m.museum_id=w.museum_id
+	GROUP BY m.name
+	ORDER BY COUNT(w.*)	DESC
+)
+LIMIT 1;
+--60
+SELECT name
+FROM artdb.works
+WHERE art_style IN (
+	SELECT art_style
+	FROM artdb.works
+	WHERE name = 'Still Life with Flowers and a Watch'
+);	
+--1
+SELECT a.full_name
+FROM artdb.artists a
+	JOIN artdb.works w
+		ON w.artist_id=a.artist_id
+GROUP BY a.full_name	
+HAVING COUNT(w.*) >(
+	SELECT AVG(s.works)
+	FROM (
+		SELECT COUNT(*) AS works
+		FROM artdb.works
+		GROUP BY artist_id
+	) AS s
+);
+--2
+SELECT w.name
+FROM artdb.museums m
+	JOIN artdb.works w
+		ON m.museum_id=w.museum_id
+			JOIN sales_data.product_size p
+				ON w.work_id=p.work_id
+GROUP BY m.museum_id, w.name, p.regular_price
+HAVING p.regular_price > (
+	SELECT AVG(p.regular_price)
+	FROM sales_data.product_size p
+);
+--3
+SELECT name
+FROM(
+	SELECT m.name, p.regular_price
+	FROM artdb.museums m
+		JOIN artdb.works w
+			ON m.museum_id=w.museum_id
+				JOIN sales_data.product_size p
+					ON w.work_id=p.work_id
+)
+ORDER BY regular_price DESC;
+--4
+SELECT name
+FROM(
+	SELECT a.full_name, w.name, a.birth
+	FROM artdb.artists a
+		JOIN artdb.works w
+			ON a.artist_id=w.artist_id
+)
+ORDER BY birth ASC
+LIMIT 1;
+--5
+SELECT name 
+FROM(
+	SELECT a.full_name, w.name, COUNT(w.work_id) AS count_works
+	FROM artdb.artists a
+		JOIN artdb.works w
+			ON a.artist_id=w.artist_id
+	GROUP BY a.full_name, w.name	
+	HAVING COUNT(w.work_id) > 5
+);
+--6
+SELECT name
+FROM artdb.works
+WHERE museum_id IN(
+	SELECT museum_id
+	FROM artdb.museums
+	WHERE city = 'Paris'
+);
+--7
+SELECT s.name
+FROM(
+	SELECT w.name, s.subject, (c.width*c.height) AS canvas_size
+	FROM sales_data.canvas_size c
+		JOIN sales_data.product_size p
+			ON c.size_id=p.size_id
+				JOIN artdb.subjects s
+					ON p.work_id=s.work_id
+						JOIN artdb.works w
+							ON s.work_id=w.work_id
+	GROUP BY w.name, s.subject, canvas_size						
+) AS s
+GROUP BY s.subject, s.name, s.canvas_size
+HAVING s.canvas_size > (
+	SELECT AVG(width*height) AS avg_canvas_size
+	FROM sales_data.canvas_size
+);
+--8
+SELECT name 
+FROM artdb.works
+WHERE work_id IN(
+	SELECT work_id
+	FROM sales_data.product_size
+	WHERE sale_price IS NULL
+);
+--9
+SELECT m.name
+FROM artdb.museums m
+	JOIN artdb.works w
+		ON m.museum_id=w.museum_id
+			JOIN artdb.artists a
+				ON w.artist_id=a.artist_id
+WHERE a.artist_id IN (				
+	SELECT artist_id
+	FROM artdb.artists
+	WHERE nationality = 'Italian'
+);	
+--10
+SELECT DISTINCT(s.subject)
+FROM artdb.subjects s
+	JOIN sales_data.product_size p
+		ON s.work_id=p.work_id
+WHERE p.regular_price > (
+	SELECT PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY regular_price) AS ninety_perc_price
+	FROM sales_data.product_size
+)
+GROUP BY s.work_id, s.subject;	
+--1
+WITH count_works_per_artist AS(
+	SELECT a.full_name, COUNT(w.*) AS count_works
+	FROM artdb.artists a
+		JOIN artdb.works w
+			ON a.artist_id=w.artist_id
+	GROUP BY a.full_name		
+)
+SELECT *
+FROM count_works_per_artist;
+--2
+WITH avg_price_per_museum AS(
+	SELECT m.name, ROUND(AVG(p.regular_price), 2) AS avg_price
+	FROM artdb.museums m
+		JOIN artdb.works w
+			ON m.museum_id=w.museum_id
+				JOIN sales_data.product_size p
+					ON p.work_id=w.work_id
+	GROUP BY m.name					
+)
+SELECT name
+FROM avg_price_per_museum
+WHERE avg_price > 10000;
+--3
+
+--4
+WITH avg_size AS(
+	SELECT AVG(width*height) AS avg_canvas_size
+	FROM sales_data.canvas_size
+	GROUP BY label
+)
+--5
+WITH artist_works AS(
+	SELECT m.name, a.full_name, COUNT(w.*) AS count_works
+		FROM artdb.museums m
+			JOIN artdb.works w
+				ON w.museum_id=m.museum_id
+					JOIN artdb.artists a
+						ON w.artist_id=a.artist_id
+	GROUP BY m.name, a.full_name	
+	HAVING COUNT(w.*) > 1						
+)
+SELECT full_name, COUNT(name) AS no_museums
+FROM artist_works
+GROUP BY full_name
+HAVING COUNT(name) > 1
+--6
+WITH art_per_subject AS(
+	SELECT s.subject, COUNT(w.*) AS count_works
+	FROM artdb.subjects s
+		JOIN artdb.works w
+			ON s.work_id=w.work_id
+	GROUP BY s.subject
+)
+SELECT subject 
+FROM art_per_subject
+WHERE count_works > 3;
+--7
+
+--8
+WITH art_prices AS(
+	SELECT a.full_name, w.name, p.regular_price
+	FROM artdb.artists a
+		JOIN artdb.works w
+			ON a.artist_id=w.artist_id
+				JOIN sales_data.product_size p
+					ON w.work_id=p.work_id
+)
+SELECT full_name
+FROM art_prices
+GROUP BY full_name, regular_price
+HAVING regular_price > (
+	SELECT AVG(regular_price)
+	FROM sales_data.product_size
+);
+--9
+--10
+WITH open_sunday AS (
+	SELECT m.name AS m_name, h.day, w.work_id
+	FROM artdb.museums m
+		JOIN artdb.museum_hours h
+			ON m.museum_id=h.museum_id
+				JOIN artdb.works w
+					ON w.museum_id=h.museum_id
+)	
+SELECT m_name
+FROM open_sunday 
+WHERE day = 'Sunday'
+	AND work_id IS NOT NULL
+GROUP BY m_name;
+
+	
+
+
+
+			
