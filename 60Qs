@@ -120,7 +120,7 @@ SELECT full_name
 FROM artdb.artists
 WHERE nationality = 'French';
 --21
-SELECT name
+SELECT full_name
 FROM artdb.artists
 WHERE birth > 1800;
 --22
@@ -138,7 +138,7 @@ FROM artdb.works w
 	 ON w.artist_id=a.artist_id
 WHERE a.birth BETWEEN 1700 AND 1800;	 
 --26
-SELECT name
+SELECT full_name
 FROM artdb.artists
 WHERE last_name = 'Renoir';
 --27
@@ -514,13 +514,23 @@ SELECT name
 FROM avg_price_per_museum
 WHERE avg_price > 10000;
 --3
-
+WITH artwork_price AS (
+	SELECT w.name, p.regular_price, m.name AS museum,
+			DENSE_RANK() OVER(PARTITION BY m.museum_id ORDER BY regular_price DESC) AS rank
+	FROM artdb.works w
+		JOIN sales_data.product_size p
+			ON w.work_id=p.work_id
+				JOIN artdb.museums m
+					ON w.museum_id=m.museum_id
+)
+SELECT *
+FROM artwork_price;		
 --4
 WITH avg_size AS(
 	SELECT AVG(width*height) AS avg_canvas_size
 	FROM sales_data.canvas_size
 	GROUP BY label
-)
+);
 --5
 WITH artist_works AS(
 	SELECT m.name, a.full_name, COUNT(w.*) AS count_works
@@ -535,7 +545,7 @@ WITH artist_works AS(
 SELECT full_name, COUNT(name) AS no_museums
 FROM artist_works
 GROUP BY full_name
-HAVING COUNT(name) > 1
+HAVING COUNT(name) > 1;
 --6
 WITH art_per_subject AS(
 	SELECT s.subject, COUNT(w.*) AS count_works
@@ -548,7 +558,14 @@ SELECT subject
 FROM art_per_subject
 WHERE count_works > 3;
 --7
-
+WITH RECURSIVE exhibition_years AS(
+	SELECT 1900 AS year
+		UNION ALL
+	SELECT year + 1 
+	FROM exhibition_years
+	WHERE year <= 2025
+)
+SELECT * FROM exhibition_years;
 --8
 WITH art_prices AS(
 	SELECT a.full_name, w.name, p.regular_price
@@ -566,6 +583,19 @@ HAVING regular_price > (
 	FROM sales_data.product_size
 );
 --9
+WITH subject_artist AS(
+	SELECT a.full_name, s.subject,
+			ROW_NUMBER() OVER(PARTITION BY full_name ORDER BY COUNT(subject) DESC) AS subject_rank
+		FROM artdb.artists a
+			JOIN artdb.works w
+				ON a.artist_id=w.artist_id
+					JOIN artdb.subjects s
+						ON w.work_id=s.work_id
+	GROUP BY a.full_name, s.subject						
+)
+SELECT full_name, subject
+FROM subject_artist
+WHERE subject_rank = 1;
 --10
 WITH open_sunday AS (
 	SELECT m.name AS m_name, h.day, w.work_id
@@ -579,10 +609,61 @@ SELECT m_name
 FROM open_sunday 
 WHERE day = 'Sunday'
 	AND work_id IS NOT NULL
-GROUP BY m_name;
-
-	
-
+GROUP BY m_name
+--11
+WITH artist_price AS(
+	SELECT a.full_name, w.name, p.regular_price
+	FROM artdb.artists a
+		JOIN artdb.works w
+			ON a.artist_id=w.artist_id
+				JOIN sales_data.product_size p
+					ON w.work_id=p.work_id
+	ORDER BY p.regular_price DESC
+)
+SELECT *
+FROM artist_price
+LIMIT 5;
+--12
+--13
+WITH avg_art_price AS(
+	SELECT ROUND(AVG(regular_price), 2) AS avg_price
+	FROM sales_data.product_size
+	),
+	 avg_canvas_size AS(
+	 SELECT ROUND(AVG(width*height), 2) AS avg_size
+	 FROM sales_data.canvas_size
+	)
+SELECT *
+FROM avg_art_price p
+	CROSS JOIN avg_canvas_size c;
+--14
+WITH artist_birth AS(
+	SELECT full_name, birth
+	FROM artdb.artists
+)
+SELECT full_name
+FROM artist_birth
+ORDER BY birth ASC
+LIMIT 1;
+--15
+WITH art_size AS(
+	SELECT w.name, MAX(c.width*c.height) AS canvas_size, label, s.subject,
+	ROW_NUMBER() OVER(PARTITION BY s.subject ORDER BY MAX(c.width*c.height) DESC) AS subject_rank
+	FROM artdb.works w
+		JOIN artdb.subjects s
+			ON w.work_id=s.work_id
+				JOIN sales_data.product_size p
+					ON s.work_id=p.work_id
+						JOIN sales_data.canvas_size c
+							ON p.size_id=c.size_id
+	GROUP BY subject, w.name, label	
+	HAVING MAX(c.width*c.height) IS NOT NULL
+)
+SELECT label, subject
+FROM art_size
+WHERE subject_rank = 1
+ORDER BY label DESC;
+--1
 
 
 			
